@@ -11,6 +11,11 @@ class FileParse(object):
     def __init__(self):
         self.member_id = ''
         self.result_list = []
+        self.status_red = 0
+        self.status_yellow = 0
+        self.status_green = 0
+        self.status_all = 0
+        self.summary_list = []
 
     def filter_file(self, file_name):
         print file_name
@@ -23,6 +28,7 @@ class FileParse(object):
                     if "member_id" in line_content:
                         temp_member_id = json.loads(line_content[line_content.index('=')+1:])
                         self.member_id = str(temp_member_id[0]['data']['member_id']).split('=')[0]
+                        self.status_all += 1
 
                     if 'paidResponse' in line_content and self.member_id and self.member_id in line_content:
                         member_info_dict['file_name'] = file_name
@@ -36,6 +42,7 @@ class FileParse(object):
                             else:
                                 error_dict[self.member_id] = [[len(self.result_list), current_line_time]]
 
+                            self.status_red += 1
                             member_info_dict['status'] = 'red'
                             self.result_list.append(member_info_dict)
                         else:
@@ -43,6 +50,8 @@ class FileParse(object):
                                 for item in error_dict[self.member_id]:
                                     if ((current_line_time - item[1]).seconds / 60) < 5:
                                         self.result_list[item[0]]["status"] = 'yellow'
+                                        self.status_yellow += 1
+                                self.status_green += 1
                                 error_dict.pop(self.member_id, None)
                                 member_info_dict['status'] = 'green'
                                 self.result_list.append(member_info_dict)
@@ -122,14 +131,19 @@ class FileParse(object):
             f.write(res)
 
     def summary(self, path):
-        for root, dirs, files in os.walk(path, topdown=False):
-            for name in files:
-                self.filter_file(os.path.join(root, name))
-        pass
+        summary_dict = dict()
+        summary_dict['error_count'] = self.status_red
+        summary_dict['error_rate'] = float(self.status_red) / self.status_all
+        summary_dict['error_repair'] = self.status_yellow
+        summary_dict['error_repair_rate'] = float(self.status_yellow) / self.status_all
+        summary_dict['day'] = 20
+        self.summary_list.append(summary_dict)
 
-    def save_result_to_json_file(self, file_name):
+    def save_result_to_js_file(self, file_name):
         with open(file_name, 'w') as f:
-            f.writelines(json.dumps({"data": self.result_list}))
+            # f.writelines(json.dumps({"data": self.result_list}))
+            f.writelines('data = ' + str(self.result_list))
+            f.writelines('\nsummary = ' + str(self.summary_list))
 
 if __name__ == "__main__":
     print datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")
@@ -138,5 +152,5 @@ if __name__ == "__main__":
     obj.filter_files("/Users/twer/Documents/starbucks/svc/10.192.115.130")
     # obj.save_result_to_file("/Users/twer/work/pjhu/file_copy/rst.log")
     # obj.save_result_to_html("/Users/twer/work/pjhu/file_copy/rst.html")
-    obj.save_result_to_json_file("/Users/twer/work/pjhu/file_copy/rst.json")
+    obj.save_result_to_js_file("/Users/twer/work/pjhu/file_copy/tests/rst.js")
     print datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")
